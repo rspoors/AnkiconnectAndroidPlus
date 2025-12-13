@@ -4,10 +4,13 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
+import android.provider.BaseColumns;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.ichi2.anki.FlashCardsContract;
 import com.ichi2.anki.api.AddContentApi;
+import com.kamwithk.ankiconnectandroid.debug.DebugLog;
 
 import java.util.*;
 
@@ -15,6 +18,12 @@ public class NoteAPI {
     private Context context;
     private final ContentResolver resolver;
     private final AddContentApi api;
+
+    private static final String TAG = "AnkiConnectAndroid";
+
+    // Some AnkiDroid builds do not support the notes_v2 URI at all.
+    // Cache support so we don't spam logs with repeated IllegalArgumentException.
+    private static volatile Boolean NOTES_V2_CARDS_SUPPORTED = null;
 
     private static final String[] MODEL_PROJECTION = {FlashCardsContract.Note.MID};
     private static final String[] NOTE_ID_PROJECTION = {FlashCardsContract.Note._ID};
@@ -143,13 +152,15 @@ public class NoteAPI {
         private final String modelName;
         private final List<String> tags;
         private final Map<String, NoteInfoField> fields;
+        private final List<Long> cards;
 
         public NoteInfo(long noteId, String modelName, List<String> tags, Map<String,
-                NoteInfoField> fields) {
+                NoteInfoField> fields, List<Long> cards) {
             this.noteId = noteId;
             this.modelName = modelName;
             this.tags = tags;
             this.fields = fields;
+            this.cards = cards;
         }
 
         public long getNoteId() {
@@ -166,6 +177,10 @@ public class NoteAPI {
 
         public Map<String, NoteInfoField> getFields() {
             return fields;
+        }
+
+        public List<Long> getCards() {
+            return cards;
         }
     }
 
@@ -245,10 +260,82 @@ public class NoteAPI {
                     NoteInfoField noteInfoField = new NoteInfoField(fieldValue, i);
                     fields.put(fieldName, noteInfoField);
                 }
-                NoteInfo noteInfo = new NoteInfo(id, model.getModelName(), tags, fields);
+
+                List<Long> cards = getCardIdsForNote(id);
+                Log.d(TAG, "notesInfo: noteId=" + id + " cards=" + cards);
+                DebugLog.append(context, "notesInfo: noteId=" + id + " cards=" + cards);
+
+                NoteInfo noteInfo = new NoteInfo(id, model.getModelName(), tags, fields, cards);
                 notesInfoList.add(noteInfo);
             }
         }
         return notesInfoList;
+    }
+
+    private List<Long> getCardIdsForNote(long noteId) {
+        String noteIdStr = Long.toString(noteId);
+        Uri noteUriV2 = Uri.withAppendedPath(FlashCardsContract.Note.CONTENT_URI_V2, noteIdStr);
+        Uri cardsUriV2 = Uri.withAppendedPath(noteUriV2, "cards");
+        Uri noteUriLegacy = Uri.withAppendedPath(FlashCardsContract.Note.CONTENT_URI, noteIdStr);
+        Uri cardsUriLegacy = Uri.withAppendedPath(noteUriLegacy, "cards");
+
+        // Some AnkiDroid builds/providers reject projections like "_id" here.
+        // Query without a projection.
+        Cursor cursor = null;
+        Boolean v2Supported = NOTES_V2_CARDS_SUPPORTED;
+        if (v2Supported == null || v2Supported) {
+            try {
+                cursor = this.resolver.query(cardsUriV2, null, null, null, null);
+                NOTES_V2_CARDS_SUPPORTED = true;
+            } catch (IllegalArgumentException e) {
+                NOTES_V2_CARDS_SUPPORTED = false;
+                DebugLog.append(context, "notesInfo: notes_v2/cards not supported (disabling v2): " + e.getMessage());
+            } catch (Exception e) {
+                DebugLog.append(context, "notesInfo: noteId=" + noteId + " -> cards(v2) query exception=" + e);
+            }
+        }
+
+        if (cursor == null) {
+            try {
+                cursor = this.resolver.query(cardsUriLegacy, null, null, null, null);
+            } catch (Exception e) {
+                Log.d(TAG, "notesInfo: noteId=" + noteId + " -> cards query exception=" + e);
+                DebugLog.append(context, "notesInfo: noteId=" + noteId + " -> cards(legacy) query exception=" + e);
+                return Collections.emptyList();
+            }
+        }
+
+        if (cursor == null) {
+            return Collections.emptyList();
+        }
+
+        final Cursor finalCursor = cursor;
+        try (finalCursor) {
+            List<Long> ids = new ArrayList<>();
+
+            // Prefer a stable per-card identifier derived from (noteId, card ordinal).
+            // Many providers expose NOTE_ID + CARD_ORD but do NOT expose a card row id.
+            int ordIdx = finalCursor.getColumnIndex(FlashCardsContract.Card.CARD_ORD);
+            if (ordIdx < 0) {
+                // Fallback: keep behavior compatible (at least enables tags/show-card), but flags
+                // may be unavailable without a proper per-card key.
+                ids.add(noteId);
+                return ids;
+            }
+
+            while (finalCursor.moveToNext()) {
+                int ord;
+                try {
+                    ord = (int) finalCursor.getLong(ordIdx);
+                } catch (Exception ignored) {
+                    continue;
+                }
+                ids.add(CardIdCodec.pack(noteId, ord));
+            }
+
+            return ids;
+        } catch (Exception ignored) {
+            return Collections.emptyList();
+        }
     }
 }

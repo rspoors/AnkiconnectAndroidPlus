@@ -12,6 +12,7 @@ import com.kamwithk.ankiconnectandroid.ankidroid_api.ModelAPI;
 import com.kamwithk.ankiconnectandroid.request_parsers.NoteRequest;
 import com.kamwithk.ankiconnectandroid.request_parsers.Parser;
 import com.kamwithk.ankiconnectandroid.request_parsers.MediaRequest;
+import com.kamwithk.ankiconnectandroid.debug.DebugLog;
 
 import fi.iki.elonen.NanoHTTPD;
 
@@ -56,6 +57,8 @@ public class AnkiAPIRouting {
                 return modelFieldNames(raw_json);
             case "findNotes":
                 return findNotes(raw_json);
+            case "findCards":
+                return findCards(raw_json);
             case "guiBrowse":
                 return guiBrowse(raw_json);
             case "canAddNotes":
@@ -107,6 +110,7 @@ public class AnkiAPIRouting {
             int version = Parser.get_version(raw_json, 4);
             String response = formatSuccessReply(JsonParser.parseString(findRoute(raw_json)), version).toString();
             Log.d("AnkiConnectAndroid", "response json: " + response);
+            DebugLog.append(integratedAPI.getContext(), "response json: " + truncateForLog(response));
             return returnResponse(response);
         } catch (Exception e) {
             Map<String, String> response = new HashMap<>();
@@ -125,8 +129,16 @@ public class AnkiAPIRouting {
                     ex.printStackTrace();
                 }
             }
+            DebugLog.append(integratedAPI.getContext(), "error: " + e);
             return newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "text/json", Parser.gson.toJson(response));
         }
+    }
+
+    private static String truncateForLog(String s) {
+        if (s == null) return "null";
+        final int max = 2000;
+        if (s.length() <= max) return s;
+        return s.substring(0, max) + "...";
     }
 
     private NanoHTTPD.Response returnResponse(String response) {
@@ -174,6 +186,11 @@ public class AnkiAPIRouting {
 
     private String findNotes(JsonObject raw_json) {
         return Parser.gson.toJson(integratedAPI.noteAPI.findNotes(Parser.getNoteQuery(raw_json)));
+    }
+
+    private String findCards(JsonObject raw_json) {
+        String query = Parser.getNoteQuery(raw_json);
+        return Parser.gson.toJson(integratedAPI.cardAPI.findCards(query));
     }
 
     private String guiBrowse(JsonObject raw_json) {

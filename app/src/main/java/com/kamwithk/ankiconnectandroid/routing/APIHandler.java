@@ -4,6 +4,7 @@ import android.content.Context;
 import android.util.Log;
 
 import com.google.gson.JsonObject;
+import com.kamwithk.ankiconnectandroid.debug.DebugLog;
 import com.kamwithk.ankiconnectandroid.ankidroid_api.IntegratedAPI;
 import com.kamwithk.ankiconnectandroid.request_parsers.Parser;
 import fi.iki.elonen.NanoHTTPD;
@@ -14,11 +15,13 @@ public class APIHandler {
     private final AnkiAPIRouting ankiAPIRouting;
     private final ForvoAPIRouting forvoAPIRouting;
     private final LocalAudioAPIRouting localAudioAPIRouting;
+    private final Context context;
 
     public APIHandler(IntegratedAPI integratedAPI, Context context) {
         ankiAPIRouting = new AnkiAPIRouting(integratedAPI);
         forvoAPIRouting = new ForvoAPIRouting(context);
         localAudioAPIRouting = new LocalAudioAPIRouting(context);
+        this.context = context;
     }
 
     public NanoHTTPD.Response chooseAPI(String json_string, Map<String, List<String>> parameters) {
@@ -29,6 +32,7 @@ public class APIHandler {
             return forvoAPIRouting.getAudioHandleError(parameters.get("term"), parameters.get("expression"), reading);
         } else {
             Log.d("AnkiConnectAndroid", "received json: " + json_string);
+            DebugLog.append(context, "received json: " + json_string);
             JsonObject raw_json = Parser.parse(json_string);
             return ankiAPIRouting.findRouteHandleError(raw_json);
         }

@@ -3,12 +3,15 @@ package com.kamwithk.ankiconnectandroid;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.net.Uri;
 import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
 import android.widget.Toast;
+
+import androidx.core.content.FileProvider;
 
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
@@ -19,6 +22,7 @@ import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 
 import com.google.android.material.snackbar.Snackbar;
+import com.kamwithk.ankiconnectandroid.debug.DebugLog;
 
 import org.jsoup.internal.StringUtil;
 
@@ -83,9 +87,49 @@ public class SettingsActivity extends AppCompatActivity {
             }
 
 
-            EditTextPreference corsHostPreference = findPreference("cors_hostname");
+            EditTextPreference corsHostPreference = findPreference("cors_host");
             if (corsHostPreference != null) {
                 corsHostPreference.setOnBindEditTextListener(editText -> editText.setHint("e.g. http://example.com"));            }
+
+
+            Preference exportDebugLog = findPreference("export_debug_log");
+            if (exportDebugLog != null) {
+                exportDebugLog.setOnPreferenceClickListener(p -> {
+                    Context context = getContext();
+                    if (context == null) {
+                        Toast.makeText(getContext(), "Cannot export debug log (context is null).", Toast.LENGTH_LONG).show();
+                        return true;
+                    }
+
+                    File logFile = DebugLog.getFile(context);
+                    if (!logFile.exists()) {
+                        Toast.makeText(getContext(), "No debug log found yet. Trigger a Yomitan lookup first.", Toast.LENGTH_LONG).show();
+                        return true;
+                    }
+
+                    Uri uri = FileProvider.getUriForFile(context, context.getPackageName(), logFile);
+                    Intent share = new Intent(Intent.ACTION_SEND);
+                    share.setType("text/plain");
+                    share.putExtra(Intent.EXTRA_STREAM, uri);
+                    share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(Intent.createChooser(share, "Share debug log"));
+                    return true;
+                });
+            }
+
+            Preference clearDebugLog = findPreference("clear_debug_log");
+            if (clearDebugLog != null) {
+                clearDebugLog.setOnPreferenceClickListener(p -> {
+                    Context context = getContext();
+                    if (context == null) {
+                        Toast.makeText(getContext(), "Cannot clear debug log (context is null).", Toast.LENGTH_LONG).show();
+                        return true;
+                    }
+                    boolean ok = DebugLog.clear(context);
+                    Toast.makeText(getContext(), ok ? "Debug log cleared." : "Failed to clear debug log.", Toast.LENGTH_LONG).show();
+                    return true;
+                });
+            }
 
 
 

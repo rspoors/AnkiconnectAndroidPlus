@@ -89,7 +89,11 @@ public class RouteHandler extends RouterNanoHTTPD.DefaultHandler {
 
         if (!corsHost.trim().equals("")) {
             rep.addHeader("Access-Control-Allow-Origin", corsHost);
-            rep.addHeader("Access-Control-Allow-Headers", "*");
+            // Needed for browser preflight (e.g. POST with application/json)
+            rep.addHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+            rep.addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+            rep.addHeader("Access-Control-Max-Age", "86400");
+            rep.addHeader("Vary", "Origin");
         }
     }
 }

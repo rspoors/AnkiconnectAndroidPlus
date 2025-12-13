@@ -1,5 +1,24 @@
 # Ankiconnect Android
 
+Fork with card tag feature added.
+Flags currently not possible
+---------------------------------------------------------------------
+Your log conclusively shows flags can’t be read on this AnkiDroid build/device via the public content provider:
+
+notes_v2 is not supported at all on your provider:
+IllegalArgumentException: uri .../notes_v2/... is not supported
+The only working /notes/<nid>/cards cursor exposes:
+cols=[note_id,ord,card_name,deck_id,question,answer]
+There is no flags/flag column (and no other small integer field we could safely interpret as a flag).
+Because of that, cardsInfo has no data source for flags and must return flags: 0 even if you flagged the card in the AnkiDroid UI.
+So: tags + show-card can work (they come from Note fields and tags), but flags are not technically available from the API surface we can access on this provider.
+
+What I changed now
+
+I cached the notes_v2 “not supported” result so it’s only detected/logged once, instead of spamming your exported log every lookup.
+
+----------------------------------------------------------
+
 Ankiconnect Android allows you to utilize the standard Anki mining workflow on Android devices like phones and eReaders.
 Create Anki cards using [Yomitan](https://yomitan.wiki/) on [Firefox Browser](https://play.google.com/store/apps/details?id=org.mozilla.firefox) and add them straight into your Anki deck!
 Mine on the go in the same way as you mine on your desktop pc.

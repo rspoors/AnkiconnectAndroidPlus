@@ -46,6 +46,10 @@ public class IntegratedAPI {
         api = new AddContentApi(context);
     }
 
+    public Context getContext() {
+        return context;
+    }
+
     public static void authenticate(Context context) {
         int permission = ContextCompat.checkSelfPermission(context, READ_WRITE_PERMISSION);
 

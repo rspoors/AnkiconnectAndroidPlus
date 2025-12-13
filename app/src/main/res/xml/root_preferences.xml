@@ -28,6 +28,7 @@
                 app:dialogTitle="Enter CORS Host"
                 app:key="cors_host"
                 app:title="CORS Host"
+                android:defaultValue="*"
                 app:useSimpleSummaryProvider="true" />
 
     </PreferenceCategory>
@@ -63,6 +64,18 @@
     <PreferenceCategory
             app:iconSpaceReserved="false"
             app:title="@string/settings_other_header">
+
+                <Preference
+                        app:iconSpaceReserved="false"
+                        app:key="export_debug_log"
+                        app:title="Export debug log"
+                        app:summary="Share AnkiconnectAndroid request logs" />
+
+                <Preference
+                        app:iconSpaceReserved="false"
+                        app:key="clear_debug_log"
+                        app:title="Clear debug log"
+                        app:summary="Delete the saved request logs" />
 
         <ListPreference
             app:iconSpaceReserved="false"

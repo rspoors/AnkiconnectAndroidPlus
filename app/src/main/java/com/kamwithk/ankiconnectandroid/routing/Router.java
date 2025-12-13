@@ -11,7 +11,9 @@ public class Router extends RouterNanoHTTPD {
     public static String contentType;
 
     public Router(Integer port, Context context) throws IOException {
-        super(port);
+        // Bind to loopback only. This keeps the API local to the device (e.g. Firefox/Yomitan)
+        // and reduces the risk of exposing Anki actions to the LAN.
+        super("127.0.0.1", port);
         this.context = context;
 
         contentType = new ContentType("; charset=UTF-8").getContentTypeHeader();
