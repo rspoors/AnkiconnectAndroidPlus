@@ -1,6 +1,7 @@
 # Ankiconnect Android
 
-Fork with card tag feature added.
+Fork with card tag feature added (dev1 branch).
+
 Flags currently not possible
 ---------------------------------------------------------------------
 Your log conclusively shows flags can’t be read on this AnkiDroid build/device via the public content provider:
