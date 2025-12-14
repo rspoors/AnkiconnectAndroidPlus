@@ -1,24 +1,33 @@
 # Ankiconnect Android
 
-Fork with card tag feature added (dev1 branch).
+Fork with a best-effort “card tags” / Yomitan-compatibility focus (work on `dev1`).
 
-Flags currently not possible
----------------------------------------------------------------------
-Your log conclusively shows flags can’t be read on this AnkiDroid build/device via the public content provider:
+### What we were trying to achieve
+Enable Yomitan on Firefox Android to show Anki “card-level” metadata and UI:
+- Display card tags and (ideally) card flags/colors
+- Enable “Show Card” / “Show Card Tags” behaviors by implementing AnkiConnect-style endpoints
 
-notes_v2 is not supported at all on your provider:
-IllegalArgumentException: uri .../notes_v2/... is not supported
-The only working /notes/<nid>/cards cursor exposes:
-cols=[note_id,ord,card_name,deck_id,question,answer]
-There is no flags/flag column (and no other small integer field we could safely interpret as a flag).
-Because of that, cardsInfo has no data source for flags and must return flags: 0 even if you flagged the card in the AnkiDroid UI.
-So: tags + show-card can work (they come from Note fields and tags), but flags are not technically available from the API surface we can access on this provider.
+### What we implemented (and what works)
+- Browser compatibility: bind the HTTP server to `127.0.0.1` and add proper CORS/preflight handling for Firefox/Yomitan.
+- No-ADB debugging: added an in-app debug log that can be exported from Settings.
+- API coverage for Yomitan: implemented/extended `notesInfo` (including `cards: [...]`) and `cardsInfo` (returns `{cardId, note, tags, flags}` objects).
+- Robust “card id” plumbing: on providers that don’t expose a stable card row id, we use a synthetic per-card identifier based on `(noteId, card ordinal)` so Yomitan can round-trip a unique ID into `cardsInfo`.
 
-What I changed now
+Result on the tested device:
+- Tags display correctly in Yomitan
+- “Show Card” works (opens AnkiDroid browser)
 
-I cached the notes_v2 “not supported” result so it’s only detected/logged once, instead of spamming your exported log every lookup.
+### Why we couldn’t get flags working
+On the tested Boox + AnkiDroid provider, card flags are not readable via the public `FlashCardsContract` content provider:
+- `notes_v2` URIs are not supported (provider throws `IllegalArgumentException: uri .../notes_v2/... is not supported`).
+- The only working `/notes/<nid>/cards` cursor exposes columns:
+    `note_id, ord, card_name, deck_id, question, answer`
+    and does not include any `flag`/`flags` field (nor any other safe flag-like integer column).
 
-----------------------------------------------------------
+Because `cardsInfo` has no data source for flags on that provider, it must return `flags: 0` even if flags are set in the AnkiDroid UI. If a future AnkiDroid build exposes flags through the provider, this app should start returning them without major changes.
+
+---
+## Ankiconnect Android
 
 Ankiconnect Android allows you to utilize the standard Anki mining workflow on Android devices like phones and eReaders.
 Create Anki cards using [Yomitan](https://yomitan.wiki/) on [Firefox Browser](https://play.google.com/store/apps/details?id=org.mozilla.firefox) and add them straight into your Anki deck!
